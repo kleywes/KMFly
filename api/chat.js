@@ -4,33 +4,30 @@ export default async function handler(req, res) {
   const { messages } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) {
-    return res.status(200).json({ text: "Erro: Chave API não configurada na Vercel." });
-  }
+  if (!apiKey) return res.status(200).json({ text: "Erro: Chave não configurada na Vercel." });
 
-  // Personalidade injetada diretamente no contexto para máxima compatibilidade
-  const systemPrompt = "INSTRUÇÃO DE SISTEMA: Você é o KMFly, um agente de viagens VIP de elite. Seja extremamente empolgado, persuasivo e use emojis. Organize as respostas com negritos. RESPONDA SEMPRE NO IDIOMA QUE O USUÁRIO FALAR.";
-
-  // Formatando as mensagens
-  const contents = messages.map((m, index) => ({
+  // Formatação simplificada para evitar erros de JSON
+  const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: (index === 0 && m.role !== 'assistant' ? systemPrompt + "\n\n" + m.content : m.content || m.text) }]
+    parts: [{ text: String(m.content || m.text) }]
   }));
 
-  // URL estável v1
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Adicionando a instrução de sistema como uma mensagem inicial oculta para garantir compatibilidade
+  const systemMessage = {
+    role: 'user',
+    parts: [{ text: "SISTEMA: Você é o KMFly, agente de viagens VIP. Seja empolgado e use emojis. Responda no idioma do usuário." }]
+  };
+  
+  contents.unshift(systemMessage);
+
+  // USANDO A ROTA v1beta COM O NOME COMPLETO DO MODELO
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: contents,
-        generationConfig: {
-          temperature: 1,
-          maxOutputTokens: 2048,
-        }
-      })
+      body: JSON.stringify({ contents })
     });
 
     const data = await response.json();
@@ -40,11 +37,10 @@ export default async function handler(req, res) {
     }
 
     if (data.candidates && data.candidates[0].content) {
-      const aiText = data.candidates[0].content.parts[0].text;
-      return res.status(200).json({ text: aiText });
-    } 
-    
-    return res.status(200).json({ text: "Ocorreu um erro na geração da resposta. Tente novamente!" });
+      return res.status(200).json({ text: data.candidates[0].content.parts[0].text });
+    }
+
+    return res.status(200).json({ text: "IA não respondeu. Tente novamente!" });
 
   } catch (error) {
     return res.status(500).json({ error: "Erro de conexão." });
