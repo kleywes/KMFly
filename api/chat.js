@@ -4,24 +4,22 @@ export default async function handler(req, res) {
   const { messages } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(200).json({ text: "Erro: Chave não configurada na Vercel." });
+  if (!apiKey) return res.status(200).json({ text: "Erro: Chave não configurada." });
 
-  // Formatação simplificada para evitar erros de JSON
+  // Simplificando o histórico para o formato que o Pro exige
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: String(m.content || m.text) }]
   }));
 
-  // Adicionando a instrução de sistema como uma mensagem inicial oculta para garantir compatibilidade
-  const systemMessage = {
+  // Instrução de personalidade como primeira mensagem
+  contents.unshift({
     role: 'user',
-    parts: [{ text: "SISTEMA: Você é o KMFly, agente de viagens VIP. Seja empolgado e use emojis. Responda no idioma do usuário." }]
-  };
-  
-  contents.unshift(systemMessage);
+    parts: [{ text: "SISTEMA: Você é o KMFly, um agente de viagens VIP de elite. Seja empolgado, use muitos emojis e responda sempre no idioma do usuário." }]
+  });
 
-  // USANDO A ROTA v1beta COM O NOME COMPLETO DO MODELO
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // USANDO GEMINI-PRO NA ROTA v1beta (O mais compatível do mundo)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
   try {
     const response = await fetch(url, {
