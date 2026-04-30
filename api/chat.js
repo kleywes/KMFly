@@ -8,15 +8,16 @@ export default async function handler(req, res) {
     return res.status(200).json({ text: "Erro: Chave API não configurada na Vercel." });
   }
 
-  // Ajuste fino no formato das mensagens para evitar erros de validação
-  const contents = messages.map(m => ({
+  // Personalidade injetada diretamente no contexto para máxima compatibilidade
+  const systemPrompt = "INSTRUÇÃO DE SISTEMA: Você é o KMFly, um agente de viagens VIP de elite. Seja extremamente empolgado, persuasivo e use emojis. Organize as respostas com negritos. RESPONDA SEMPRE NO IDIOMA QUE O USUÁRIO FALAR.";
+
+  // Formatando as mensagens
+  const contents = messages.map((m, index) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: String(m.content || m.text) }]
+    parts: [{ text: (index === 0 && m.role !== 'assistant' ? systemPrompt + "\n\n" + m.content : m.content || m.text) }]
   }));
 
-  const systemInstruction = "Você é o KMFly, um agente de viagens VIP de elite. Seja extremamente empolgado, persuasivo e use muitos emojis. Organize as respostas com negritos e cabeçalhos.";
-
-  // Mudamos para a versão v1 (estável) e garantimos o nome do modelo correto
+  // URL estável v1
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   try {
@@ -25,12 +26,8 @@ export default async function handler(req, res) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: contents,
-        systemInstruction: { 
-          parts: [{ text: systemInstruction }] 
-        },
         generationConfig: {
           temperature: 1,
-          topP: 0.95,
           maxOutputTokens: 2048,
         }
       })
@@ -39,7 +36,6 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (data.error) {
-      console.error("Erro detalhado do Google:", data.error);
       return res.status(200).json({ text: `Erro do Google: ${data.error.message}` });
     }
 
@@ -48,9 +44,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ text: aiText });
     } 
     
-    return res.status(200).json({ text: "O Google não gerou uma resposta. Tente reformular sua pergunta." });
+    return res.status(200).json({ text: "Ocorreu um erro na geração da resposta. Tente novamente!" });
 
   } catch (error) {
-    return res.status(500).json({ error: "Erro de conexão com o servidor da API." });
+    return res.status(500).json({ error: "Erro de conexão." });
   }
 }
