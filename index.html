@@ -37,6 +37,23 @@
             const [view, setView] = React.useState('hero');
             const [input, setInput] = React.useState('');
             const [messages, setMessages] = React.useState([]);
+            const sendMessage = async () => {
+    const userText = input;
+    const newMsgs = [...messages, { role: 'user', content: userText }];
+    setMessages(newMsgs);
+    setInput('');
+    
+    const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMsgs })
+    });
+    
+    const data = await res.json();
+    // O Gemini agora retorna direto em data.text
+    setMessages([...newMsgs, { role: 'assistant', content: data.text }]);
+};
+
 
             const startTrip = () => {
                 setView('chat');
